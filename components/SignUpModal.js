@@ -10,9 +10,10 @@ const SignUpModal = ({ showSignUp, setShowSignUp, setShowSignIn }) => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [signUpData, setSignUpData] = useState({
-    fullName: '',
+    firstName: '',
+    lastName: '',
+    dateOfBirth: '',
     email: '',
-    username: '',
     password: '',
     confirmPassword: '',
     captchaInput: '',
@@ -40,9 +41,10 @@ const SignUpModal = ({ showSignUp, setShowSignUp, setShowSignIn }) => {
       generateCaptcha();
       setErrors({});
       setSignUpData({
-        fullName: '',
+        firstName: '',
+        lastName: '',
+        dateOfBirth: '',
         email: '',
-        username: '',
         password: '',
         confirmPassword: '',
         captchaInput: '',
@@ -58,7 +60,10 @@ const SignUpModal = ({ showSignUp, setShowSignUp, setShowSignIn }) => {
     let newValue = type === 'checkbox' ? checked : value;
 
     // Validation for full name (only letters and spaces)
-    if (name === 'fullName' && value) {
+    if (name === 'firstName' && value) {
+      if (!/^[a-zA-Z\s]*$/.test(value)) return;
+    }
+    if (name === 'lastName' && value) {
       if (!/^[a-zA-Z\s]*$/.test(value)) return;
     }
 
@@ -82,10 +87,16 @@ const SignUpModal = ({ showSignUp, setShowSignUp, setShowSignIn }) => {
     const passwordRegex = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
 
     // Full Name validation
-    if (!signUpData.fullName.trim()) {
-      newErrors.fullName = 'Full name is required';
-    } else if (!/^[a-zA-Z\s]{2,}$/.test(signUpData.fullName)) {
-      newErrors.fullName = 'Full name must contain only letters';
+    if (!signUpData.firstName.trim()) {
+      newErrors.firstName = 'First name is required';
+    }
+    if (!signUpData.lastName.trim()) {
+      newErrors.lastName = 'Last name is required';
+    }
+
+    // Date of Birth validation
+    if (!signUpData.dateOfBirth) {
+      newErrors.dateOfBirth = 'Date of birth is required';
     }
 
     // Email validation
@@ -93,13 +104,6 @@ const SignUpModal = ({ showSignUp, setShowSignUp, setShowSignIn }) => {
       newErrors.email = 'Email is required';
     } else if (!emailRegex.test(signUpData.email)) {
       newErrors.email = 'Please enter a valid email';
-    }
-
-    // Username validation
-    if (!signUpData.username) {
-      newErrors.username = 'Username is required';
-    } else if (signUpData.username.length < 3) {
-      newErrors.username = 'Username must be at least 3 characters';
     }
 
     // Password validation
@@ -137,11 +141,31 @@ const SignUpModal = ({ showSignUp, setShowSignUp, setShowSignIn }) => {
     if (!validateForm()) return;
 
     try {
-      // Add your sign-up logic here
+      const response = await fetch('http://localhost:3000/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firstName: signUpData.firstName,
+          lastName: signUpData.lastName,
+          dateOfBirth: signUpData.dateOfBirth,
+          email: signUpData.email,
+          password: signUpData.password,
+        }),
+      });
+      console.log("idhfidsubfdsiufbsdiufbsdiuf")
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Sign up failed. Please try again.');
+      }
+
       toast.success('Account created successfully!');
       setShowSignUp(false);
     } catch (error) {
-      toast.error('Sign up failed. Please try again.');
+      toast.error(error.message);
     }
   };
 
@@ -208,20 +232,59 @@ const SignUpModal = ({ showSignUp, setShowSignUp, setShowSignIn }) => {
             {/* Full Name Input */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Full Name
+                First Name
               </label>
               <input
                 type="text"
-                name="fullName"
-                value={signUpData.fullName}
+                name="firstName"
+                value={signUpData.firstName}
                 onChange={handleSignUpChange}
                 className={`w-full p-3 bg-black text-white rounded-lg border ${
-                  errors.fullName ? 'border-red-500' : 'border-[#333333]'
+                  errors.firstName ? 'border-red-500' : 'border-[#333333]'
                 } focus:outline-none focus:border-cyan-500 placeholder:text-gray-500`}
-                placeholder="Enter your full name"
+                placeholder="Enter your first name"
               />
-              {errors.fullName && (
-                <p className="mt-1 text-sm text-red-500">{errors.fullName}</p>
+              {errors.firstName && (
+                <p className="mt-1 text-sm text-red-500">{errors.firstName}</p>
+              )}
+            </div>
+
+            {/* Last Name Input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Last Name
+              </label>
+              <input
+                type="text"
+                name="lastName"
+                value={signUpData.lastName}
+                onChange={handleSignUpChange}
+                className={`w-full p-3 bg-black text-white rounded-lg border ${
+                  errors.lastName ? 'border-red-500' : 'border-[#333333]'
+                } focus:outline-none focus:border-cyan-500 placeholder:text-gray-500`}
+                placeholder="Enter your last name"
+              />
+              {errors.lastName && (
+                <p className="mt-1 text-sm text-red-500">{errors.lastName}</p>
+              )}
+            </div>
+
+            {/* Date of Birth Input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Date of Birth
+              </label>
+              <input
+                type="date"
+                name="dateOfBirth"
+                value={signUpData.dateOfBirth}
+                onChange={handleSignUpChange}
+                className={`w-full p-3 bg-black text-white rounded-lg border ${
+                  errors.dateOfBirth ? 'border-red-500' : 'border-[#333333]'
+                } focus:outline-none focus:border-cyan-500 placeholder:text-gray-500`}
+              />
+              {errors.dateOfBirth && (
+                <p className="mt-1 text-sm text-red-500">{errors.dateOfBirth}</p>
               )}
             </div>
 
@@ -242,26 +305,6 @@ const SignUpModal = ({ showSignUp, setShowSignUp, setShowSignIn }) => {
               />
               {errors.email && (
                 <p className="mt-1 text-sm text-red-500">{errors.email}</p>
-              )}
-            </div>
-
-            {/* Username Input */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Username
-              </label>
-              <input
-                type="text"
-                name="username"
-                value={signUpData.username}
-                onChange={handleSignUpChange}
-                className={`w-full p-3 bg-black text-white rounded-lg border ${
-                  errors.username ? 'border-red-500' : 'border-[#333333]'
-                } focus:outline-none focus:border-cyan-500 placeholder:text-gray-500`}
-                placeholder="Choose a username"
-              />
-              {errors.username && (
-                <p className="mt-1 text-sm text-red-500">{errors.username}</p>
               )}
             </div>
 
