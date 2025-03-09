@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useRef, useContext, useLayoutEffect } from 'react';
 import { motion, AnimatePresence, useScroll, useSpring } from 'framer-motion';
 import CountUp from 'react-countup';
 import {
@@ -32,6 +32,9 @@ import {
 import { Scene3D } from '../../components/3d/Scene';
 import { EnhancedPieChart } from '../../components/charts/EnhancedPieChart';
 import { DetectionTrends } from '../../components/charts/DetectionTrends';
+import FakeProfileForm from '../../components/FakeProfileForm';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // Register ChartJS components
 ChartJS.register(
@@ -178,19 +181,30 @@ const floatingAnimation = {
 };
 
 export default function Dashboard() {
+  // State to hold user input and prediction result
+  const [userData, setUserData] = useState({
+    id: '',
+    name: '',
+    statuses_count: '',
+    followers_count: '',
+    friends_count: '',
+    favourites_count: '',
+    listed_count: '',
+    geo_enabled: '',
+    profile_use_background_image: '',
+    lang: ''
+  });
+  const [predictionResult, setPredictionResult] = useState(null);
+  const [error, setError] = useState(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  
+  // Other state variables
   const [notifications, setNotifications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeSection, setActiveSection] = useState('home');
   const [hoveredCard, setHoveredCard] = useState(null);
 
-  const navItems = [
-    { id: 'home', label: 'Home', icon: HomeIcon },
-    { id: 'distribution', label: 'Profile Distribution', icon: ChartPieIcon },
-    { id: 'analyze', label: 'Analyse Profile', icon: UserIcon },
-    { id: 'trends', label: 'Detection Trends', icon: ChartBarIcon },
-    { id: 'features', label: "What's the use?", icon: QuestionMarkCircleIcon },
-  ];
-
+  // Hooks for scroll and animations
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, {
     stiffness: 100,
@@ -198,6 +212,7 @@ export default function Dashboard() {
     restDelta: 0.001
   });
 
+  // Effect for loading and notifications
   useEffect(() => {
     // Simulate loading
     setTimeout(() => setIsLoading(false), 1500);
@@ -377,6 +392,64 @@ export default function Dashboard() {
       ctx.restore();
     }
   };
+
+  // Handle input change
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setUserData((prevData) => ({
+      ...prevData,
+      [name]: value
+    }));
+  };
+  const handleAnalyzeUser = async (e) => {
+    e.preventDefault(); // Prevent default form submission
+    setIsAnalyzing(true); // Set loading state
+    try {
+        console.log('User Data:', userData); // Log the user data being sent
+        const response = await fetch('http://localhost:3000/api/predict', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(userData),
+        });
+
+        if (!response.ok) {
+            throw new Error('Server error: ' + response.statusText);
+        }
+
+        const result = await response.json();
+        console.log('API Response:', result); // Log the response
+
+        // Check if result is an array and has the expected structure
+        if (Array.isArray(result) && result.length > 0) {
+            const prediction = result[0]; // Get the first object in the array
+            if (prediction.Predicted_isFake) {
+                const isFake = prediction.Predicted_isFake[0]; // Access the first element of the array
+                setPredictionResult(isFake === 1 ? 'The profile is likely fake.' : 'The profile is likely real.');
+            } else {
+                throw new Error('Predicted_isFake not found in response');
+            }
+        } else {
+            throw new Error('Unexpected response format');
+        }
+
+        setError(null); // Clear any previous errors
+    } catch (error) {
+        setError('Error analyzing user: ' + error.message);
+        setPredictionResult(null); // Clear previous prediction result
+    } finally {
+        setIsAnalyzing(false); // Reset loading state
+    }
+  };
+
+  const navItems = [
+    { id: 'home', label: 'Home', icon: HomeIcon },
+    { id: 'distribution', label: 'Profile Distribution', icon: ChartPieIcon },
+    { id: 'analyze', label: 'Analyse Profile', icon: UserIcon },
+    { id: 'trends', label: 'Detection Trends', icon: ChartBarIcon },
+    { id: 'features', label: "What's the use?", icon: QuestionMarkCircleIcon },
+  ];
 
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden">
@@ -735,236 +808,97 @@ export default function Dashboard() {
           {/* Try & Analyse Section */}
           <motion.section 
             id="analyze" 
-            className="min-h-[70vh] p-8 relative overflow-hidden"
+            className="min-h-screen bg-zinc-900/30 p-8 relative overflow-hidden"
             variants={sectionVariants}
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, amount: 0.3 }}
           >
             <MovingGradient />
-            {/* White Gradient Animation */}
-            <div className="absolute inset-0 pointer-events-none">
-              <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 animate-pulse" />
-              <div className="absolute inset-0 backdrop-blur-[100px]" />
-            </div>
             <div className="relative z-10">
               <div className="max-w-4xl mx-auto">
-                <h2 
-                  className="text-3xl font-bold mb-6 bg-gradient-to-r from-cyan-500 to-purple-500 bg-clip-text text-transparent"
-                >
+                <h2 className="text-3xl font-bold mb-6 bg-gradient-to-r from-cyan-500 to-purple-500 bg-clip-text text-transparent">
                   Try & Analyse a Profile
                 </h2>
 
-                {/* Search Container */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="relative"
-                >
-                  <motion.div
-                    className="bg-zinc-900/50 backdrop-blur-xl rounded-2xl p-8 border border-zinc-800/50 relative overflow-hidden"
-                    whileHover={{ scale: 1.02 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    {/* Animated Background */}
-                    <motion.div
-                      className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-cyan-500/10 to-purple-500/10"
-                      animate={{
-                        backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
-                      }}
-                      transition={{
-                        duration: 10,
-                        repeat: Infinity,
-                        ease: "linear"
-                      }}
-                    />
+                <form onSubmit={handleAnalyzeUser} className="space-y-6">
+                  <input
+                    type="number"
+                    name="id"
+                    placeholder="ID"
+                    onChange={handleInputChange}
+                    className="w-full p-4 bg-black/50 text-white rounded-lg border border-[#333333] focus:outline-none focus:border-cyan-500"
+                  />
+                  <input
+                    type="text"
+                    name="name"
+                    placeholder="Name"
+                    onChange={handleInputChange}
+                    className="w-full p-4 bg-black/50 text-white rounded-lg border border-[#333333] focus:outline-none focus:border-cyan-500"
+                  />
+                  <input
+                    type="number"
+                    name="statuses_count"
+                    placeholder="Statuses Count"
+                    onChange={handleInputChange}
+                    className="w-full p-4 bg-black/50 text-white rounded-lg border border-[#333333] focus:outline-none focus:border-cyan-500"
+                  />
+                  <input
+                    type="number"
+                    name="followers_count"
+                    placeholder="Followers Count"
+                    onChange={handleInputChange}
+                    className="w-full p-4 bg-black/50 text-white rounded-lg border border-[#333333] focus:outline-none focus:border-cyan-500"
+                  />
+                  <input
+                    type="number"
+                    name="friends_count"
+                    placeholder="Friends Count"
+                    onChange={handleInputChange}
+                    className="w-full p-4 bg-black/50 text-white rounded-lg border border-[#333333] focus:outline-none focus:border-cyan-500"
+                  />
+                  <input
+                    type="number"
+                    name="favourites_count"
+                    placeholder="Favourites Count"
+                    onChange={handleInputChange}
+                    className="w-full p-4 bg-black/50 text-white rounded-lg border border-[#333333] focus:outline-none focus:border-cyan-500"
+                  />
+                  <input
+                    type="number"
+                    name="listed_count"
+                    placeholder="Listed Count"
+                    onChange={handleInputChange}
+                    className="w-full p-4 bg-black/50 text-white rounded-lg border border-[#333333] focus:outline-none focus:border-cyan-500"
+                  />
+                  <input
+                    type="number"
+                    name="geo_enabled"
+                    placeholder="Geo Enabled (0 or 1)"
+                    onChange={handleInputChange}
+                    className="w-full p-4 bg-black/50 text-white rounded-lg border border-[#333333] focus:outline-none focus:border-cyan-500"
+                  />
+                  <input
+                    type="number"
+                    name="profile_use_background_image"
+                    placeholder="Background Image (0 or 1)"
+                    onChange={handleInputChange}
+                    className="w-full p-4 bg-black/50 text-white rounded-lg border border-[#333333] focus:outline-none focus:border-cyan-500"
+                  />
+                  <input
+                    type="text"
+                    name="lang"
+                    placeholder="Language"
+                    onChange={handleInputChange}
+                    className="w-full p-4 bg-black/50 text-white rounded-lg border border-[#333333] focus:outline-none focus:border-cyan-500"
+                  />
+                  <button type="submit" className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg hover:opacity-90 transition-opacity">
+                    Analyze ⚡
+                  </button>
+                </form>
 
-                    {/* Platform Selection */}
-                    <div className="mb-6 flex justify-center items-center gap-4">
-                      {[
-                        { 
-                          name: 'Facebook', 
-                          color: 'blue',
-                          icon: (
-                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 320 512">
-                              <path d="M279.14 288l14.22-92.66h-88.91v-60.13c0-25.35 12.42-50.06 52.24-50.06h40.42V6.26S260.43 0 225.36 0c-73.22 0-121.08 44.38-121.08 124.72v70.62H22.89V288h81.39v224h100.17V288z"/>
-                            </svg>
-                          )
-                        },
-                        { 
-                          name: 'LinkedIn', 
-                          color: 'blue',
-                          icon: (
-                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 448 512">
-                              <path d="M100.28 448H7.4V148.9h92.88zM53.79 108.1C24.09 108.1 0 83.5 0 53.8a53.79 53.79 0 0 1 107.58 0c0 29.7-24.1 54.3-53.79 54.3zM447.9 448h-92.68V302.4c0-34.7-.7-79.2-48.29-79.2-48.29 0-55.69 37.7-55.69 76.7V448h-92.78V148.9h89.08v40.8h1.3c12.4-23.5 42.69-48.3 87.88-48.3 94 0 111.28 61.9 111.28 142.3V448z"/>
-                            </svg>
-                          )
-                        },
-                        { 
-                          name: 'Instagram', 
-                          color: 'pink',
-                          icon: (
-                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 448 512">
-                              <path d="M224.1 141c-63.6 0-114.9 51.3-114.9 114.9s51.3 114.9 114.9 114.9S339 319.5 339 255.9 287.7 141 224.1 141zm0 189.6c-41.1 0-74.7-33.5-74.7-74.7s33.5-74.7 74.7-74.7 74.7 33.5 74.7 74.7-33.6 74.7-74.7 74.7zm146.4-194.3c0 14.9-12 26.8-26.8 26.8-14.9 0-26.8-12-26.8-26.8s12-26.8 26.8-26.8 26.8 12 26.8 26.8zm76.1 27.2c-1.7-35.9-9.9-67.7-36.2-93.9-26.2-26.2-58-34.4-93.9-36.2-37-2.1-147.9-2.1-184.9 0-35.8 1.7-67.6 9.9-93.9 36.1s-34.4 58-36.2 93.9c-2.1 37-2.1 147.9 0 184.9 1.7 35.9 9.9 67.7 36.2 93.9s58 34.4 93.9 36.2c37 2.1 147.9 2.1 184.9 0 35.9-1.7 67.7-9.9 93.9-36.2 26.2-26.2 34.4-58 36.2-93.9 2.1-37 2.1-147.8 0-184.8zM398.8 388c-7.8 19.6-22.9 34.7-42.6 42.6-29.5 11.7-99.5 9-132.1 9s-102.7 2.6-132.1-9c-19.6-7.8-34.7-22.9-42.6-42.6-11.7-29.5-9-99.5-9-132.1s-2.6-102.7 9-132.1c7.8-19.6 22.9-34.7 42.6-42.6 29.5-11.7 99.5-9 132.1-9s102.7-2.6 132.1 9c19.6 7.8 34.7 22.9 42.6 42.6 11.7 29.5 9 99.5 9 132.1s2.7 102.7-9 132.1z"/>
-                            </svg>
-                          )
-                        }
-                      ].map((platform, index) => (
-                        <motion.button
-                          key={platform.name}
-                          initial={{ opacity: 0, y: -20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.5 + index * 0.1 }}
-                          whileHover={{ 
-                            scale: 1.1,
-                            boxShadow: platform.name === 'LinkedIn' ? '0 0 20px rgba(0, 119, 181, 0.4)' : 
-                                       platform.name === 'Facebook' ? '0 0 20px rgba(66, 103, 178, 0.4)' :
-                                       '0 0 20px rgba(225, 48, 108, 0.4)'
-                          }}
-                          whileTap={{ scale: 0.95 }}
-                          className={`px-6 py-3 rounded-xl ${
-                            platform.name === 'LinkedIn' ? 'bg-[#0077B5]/20 border-[#0077B5]/30 text-[#0077B5]' :
-                            platform.name === 'Facebook' ? 'bg-[#4267B2]/20 border-[#4267B2]/30 text-[#4267B2]' :
-                            'bg-gradient-to-r from-[#833AB4]/20 via-[#FD1D1D]/20 to-[#F77737]/20 border-[#E1306C]/30 text-[#E1306C]'
-                          } flex items-center gap-2 transition-all duration-300 hover:bg-opacity-30`}
-                        >
-                          <motion.span 
-                            className={
-                              platform.name === 'LinkedIn' ? 'text-[#0077B5]' :
-                              platform.name === 'Facebook' ? 'text-[#4267B2]' :
-                              'text-transparent bg-clip-text bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#F77737]'
-                            }
-                            whileHover={{ rotate: 360 }}
-                            transition={{ duration: 0.5 }}
-                          >
-                            {platform.icon}
-                          </motion.span>
-                          {platform.name}
-                        </motion.button>
-                      ))}
-                    </div>
-
-                    {/* Search Bar */}
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.8 }}
-                      className="relative"
-                    >
-                      <motion.div
-                        className="relative flex items-center"
-                        {...hoverGlow}
-                      >
-                        <motion.div
-                          className="absolute left-4 text-gray-400"
-                          animate={{
-                            scale: [1, 1.2, 1],
-                          }}
-                          transition={{
-                            duration: 2,
-                            repeat: Infinity,
-                            ease: "easeInOut"
-                          }}
-                        >
-                          🔍
-                        </motion.div>
-                        <input
-                          type="text"
-                          placeholder="Enter profile URL or username..."
-                          className="w-full px-12 py-4 bg-zinc-800/50 rounded-xl border border-zinc-700/50
-                            focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20
-                            transition-all duration-300 outline-none text-white placeholder-gray-400
-                            hover:bg-zinc-800/70"
-                        />
-                        <motion.button
-                          {...hoverScale}
-                          className="absolute right-4 px-4 py-2 bg-gradient-to-r from-purple-500 to-cyan-500
-                            rounded-lg text-white font-medium shadow-lg flex items-center gap-2"
-                        >
-                          Analyze
-                          <motion.span
-                            animate={{
-                              rotate: [0, 360],
-                            }}
-                            transition={{
-                              duration: 2,
-                              repeat: Infinity,
-                              ease: "linear"
-                            }}
-                          >
-                            ⚡
-                          </motion.span>
-                        </motion.button>
-                      </motion.div>
-
-                      {/* Animated Helper Text */}
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 1 }}
-                        className="mt-4 text-sm text-gray-400 text-center"
-                      >
-                        Paste the profile URL or enter username to start the analysis
-                      </motion.div>
-                    </motion.div>
-
-                    {/* Recent Searches */}
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 1.2 }}
-                      className="mt-8"
-                    >
-                      <h3 className="text-gray-400 mb-4 flex items-center gap-2">
-                        <ClockIcon className="w-4 h-4" />
-                        Recent Searches
-                      </h3>
-                      <div className="flex flex-wrap gap-2">
-                        {['@john_doe', '@jane_smith', '@tech_guru'].map((search, index) => (
-                          <motion.div
-                            key={search}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 1.4 + index * 0.1 }}
-                            whileHover={{ 
-                              scale: 1.1,
-                              backgroundColor: "rgba(168, 85, 247, 0.2)",
-                              color: "white"
-                            }}
-                            className="px-3 py-1 bg-zinc-800/50 rounded-full text-sm text-gray-400
-                              cursor-pointer transition-all duration-300"
-                          >
-                            {search}
-                          </motion.div>
-                        ))}
-                      </div>
-                    </motion.div>
-
-                    {/* Floating Particles */}
-                    {[...Array(6)].map((_, i) => (
-                      <motion.div
-                        key={i}
-                        className="absolute w-1 h-1 bg-white/20 rounded-full"
-                        animate={{
-                          y: [-20, -40, -20],
-                          x: [-10, 10, -10],
-                          opacity: [0, 1, 0],
-                          scale: [0, 1, 0],
-                        }}
-                        transition={{
-                          duration: 3 + Math.random() * 2,
-                          repeat: Infinity,
-                          delay: i * 0.3,
-                        }}
-                        style={{
-                          left: `${Math.random() * 100}%`,
-                          top: `${Math.random() * 100}%`,
-                        }}
-                      />
-                    ))}
-                  </motion.div>
-                </motion.div>
+                {error && <div style={{ color: 'red' }}>{error}</div>}
+                {predictionResult && <div>{predictionResult}</div>}
               </div>
             </div>
           </motion.section>
@@ -1164,6 +1098,7 @@ export default function Dashboard() {
           transformOrigin: "0%"
         }}
       />
+      <ToastContainer position="top-right" theme="dark" />
     </div>
   );
 }

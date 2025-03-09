@@ -158,7 +158,7 @@ const SignInModal = ({ showSignIn, setShowSignIn, setShowSignUp }) => {
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-[#111111] w-full max-w-md rounded-xl border border-[#333333] p-6">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-white">Sign Innnn</h2>
+          <h2 className="text-xl font-semibold text-white">Sign In</h2>
           <button 
             onClick={() => setShowSignIn(false)}
             className="text-gray-400 hover:text-white"

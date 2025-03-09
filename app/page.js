@@ -74,10 +74,55 @@ export default function Home() {
     }
   }, [showSignUp]);
 
- 
+  // State to hold user input and prediction result
+  const [userData, setUserData] = useState({
+    id: '',
+    name: '',
+    statuses_count: '',
+    followers_count: '',
+    friends_count: '',
+    favourites_count: '',
+    listed_count: '',
+    geo_enabled: '',
+    profile_use_background_image: '',
+    lang: ''
+  });
+  const [predictionResult, setPredictionResult] = useState(null);
+  const [error, setError] = useState(null);
 
-  //
+  // Handle input change
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setUserData((prevData) => ({
+      ...prevData,
+      [name]: value
+    }));
+  };
 
+  // Add handleAnalyzeUser function
+  const handleAnalyzeUser = async () => {
+    try {
+      const response = await fetch('http://localhost:3000/api/predict', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Server error: ' + response.statusText);
+      }
+
+      const result = await response.json();
+      const isFake = result[0].Predicted_isFake[0];
+      setPredictionResult(isFake === 1 ? 'The profile is likely fake.' : 'The profile is likely real.');
+      setError(null); // Clear any previous errors
+    } catch (error) {
+      setError('Error analyzing user: ' + error.message);
+      setPredictionResult(null); // Clear previous prediction result
+    }
+  };
 
   return (
     <main className="min-h-screen bg-black">

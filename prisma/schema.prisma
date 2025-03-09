@@ -23,3 +23,17 @@ model User {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+// schema.prisma  
+model Profile { 
+  id                        Int     @id @default(autoincrement())
+  name                      String
+  statuses_count            Int
+  followers_count           Int
+  friends_count             Int
+  favourites_count          Int
+  listed_count              Int
+  geo_enabled               Int
+  profile_use_background_image Int
+  lang                      String
+  isFake                    Int     // 0 or 1
+}
